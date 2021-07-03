@@ -1,0 +1,524 @@
+# AUTHOR: mgood7123
+
+name: CMake
+
+on:
+  push:
+    branches:
+      - master
+      - main
+
+concurrency:
+  group: build
+  cancel-in-progress: true
+
+env:
+
+
+  # Customize the CMake build type here (Release, Debug, RelWithDebInfo, etc.)
+  
+  BUILD_TYPE: Debug
+  
+  
+  
+  # Customize the build folder here
+  # IMPORTANT: this MUST NOT conflict with any existing folders
+  
+  GITHUB_ACTIONS_PREBUILD_BUILD_FOLDER: GITHUB_ACTIONS_PREBUILD_BUILD_FOLDER
+  
+  
+
+  # Customize the output folder here
+  # IMPORTANT: this MUST NOT conflict with any existing folders
+  
+  GITHUB_ACTIONS_PREBUILD_OUT_FOLDER: GITHUB_ACTIONS_PREBUILD_OUT_FOLDER
+  
+  
+  
+  # Set this to true in order to publish builds to dedicated repos
+  # this has the advantage of keeping repository size minimal
+  # history is also kept minimal to reduce total repo size
+  
+  # IMPORTANT: this requires a SECURE_PASSWORD
+  
+  PUSH_TO_EXTERNAL_REPO: true
+  
+  
+
+  # Customize the external repo output folder here
+  # IMPORTANT: this MUST NOT conflict with any existing folders
+  
+  GITHUB_ACTIONS_PREBUILD_EXTERNAL_REPO_FOLDER: GITHUB_ACTIONS_PREBUILD_EXTERNAL_REPO_FOLDER
+  
+  
+  
+  # this variable is used to encrypt and decrypt your SSH Key
+  
+  # if it changes, a new SSH Key will need to be generated
+  
+  # DO NOT use a publicly accessable password
+  
+  # DO NOT hardcode the password into this file
+  
+  # WRONG: SECURE_PASSWORD: password123
+  
+  # RIGHT: SECURE_PASSWORD: ${{secrets.Password}}
+    
+  # it is HIGHLY recommended to use a secret instead of a hardcoded value due to github masking ALL secrets when printed
+  # please see https://docs.github.com/en/actions/reference/encrypted-secrets for more information
+  
+  # to create a secret, go to
+  
+  # go to your repository containing this workflow
+  # Settings -> Secrets -> New repository secret
+
+  # in the [Value] field, enter a strong password
+  
+  # in the [Name] field, enter a name, replacing spaces with underscore (_)
+  # for example, we will name it REPO_ACCESS_TOKEN
+  
+  # and then enter it here as ${{secrets.REPO_ACCESS_TOKEN}}
+  
+  SECURE_PASSWORD: ${{secrets.REPO_ACCESS_TOKEN}}
+  
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    permissions:
+      contents: write
+
+    strategy:
+      fail-fast: false
+      max-parallel: 1
+      matrix:
+        include:
+        
+#        - os: ubuntu-latest
+#          extension: so
+
+        - os: macOS-latest
+          extension: dylib
+
+#        - os: windows-latest
+#          extension: dll
+
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+    
+    - name: System - EXTERNAL REPO - Make sure env.GITHUB_ACTIONS_PREBUILD_EXTERNAL_REPO_FOLDER is not an empty string
+      run: |
+        if [[ ${{env.GITHUB_ACTIONS_PREBUILD_EXTERNAL_REPO_FOLDER}} == "" ]]
+            then
+                echo "ERROR: env.GITHUB_ACTIONS_PREBUILD_EXTERNAL_REPO_FOLDER is empty"
+                echo "       please make sure env.GITHUB_ACTIONS_PREBUILD_EXTERNAL_REPO_FOLDER"
+                echo "       is not empty"
+                false
+        fi
+      if: env.PUSH_TO_EXTERNAL_REPO == 'true'
+      
+    - name: System - EXTERNAL REPO - make sure env.SECURE_PASSWORD is not an empty string
+      run: |
+        echo "env.SECURE_PASSWORD: ${{env.SECURE_PASSWORD}}"
+        if [[ "${{env.SECURE_PASSWORD}}" == "" ]]
+            then
+                echo the environmental variable SECURE_PASSWORD has not been set in this yaml
+                echo
+                echo please set SECURE_PASSWORD in this yaml via
+                echo
+                echo "env:"
+                echo "  SECURE_PASSWORD: \${{secrets.REPO_ACCESS_TOKEN}}"
+                echo
+                echo and ensure that your secret exists and is not empty
+                echo
+                echo "if your secret exists then you should see 'env.SECURE_PASSWORD: ***' or similar"
+                echo "if you see 'env.SECURE_PASSWORD: aPassword45' or similar, then your password is not a repository secret"
+                echo "and it is highly recommended that you change your password and generate a new ssh key (see below)"
+                false
+            else
+                true
+        fi
+      if: env.PUSH_TO_EXTERNAL_REPO == 'true'
+      
+    - name: Git - Disable automatic line ending conversion
+      run: |
+        git config --global core.autocrlf false
+
+    - name: System - Checkout repository
+      uses: actions/checkout@v2
+    
+    - name: Git - Configure global user email and user name
+      run: |
+        git config --global user.email "no_email@no_email.com"
+        git config --global user.name "GITHUB_ACTIONS_PREBUILD"
+        git status
+
+    - name: Git - Pull
+      run: |
+        git pull
+        git status
+        
+    - name: System - EXTERNAL REPO - Setup configuration variable needed by super-projects
+      run: |
+        if [[ ! -e ${{env.GITHUB_ACTIONS_PREBUILD_EXTERNAL_REPO_FOLDER}} ]]
+            then
+                mkdir ${{env.GITHUB_ACTIONS_PREBUILD_EXTERNAL_REPO_FOLDER}}
+        fi
+        if [[ ! -e GITHUB_ACTIONS_PREBUILD_CONFIG ]]
+            then
+                git config -f GITHUB_ACTIONS_PREBUILD_CONFIG GITHUB.ACTIONS.PREBUILD.EXTERNAL.REPO ${{env.GITHUB_ACTIONS_PREBUILD_EXTERNAL_REPO_FOLDER}}
+                git add GITHUB_ACTIONS_PREBUILD_CONFIG
+                git commit -m "update configuration"
+                echo "'git config -f GITHUB_ACTIONS_PREBUILD_CONFIG GITHUB.ACTIONS.PREBUILD.EXTERNAL.REPO' has been updated"
+            else
+                if [[ $(git config -f GITHUB_ACTIONS_PREBUILD_CONFIG -l | grep -q GITHUB.ACTIONS.PREBUILD.EXTERNAL.REPO; echo $?) != "0" ]]
+                    then
+                        git config -f GITHUB_ACTIONS_PREBUILD_CONFIG GITHUB.ACTIONS.PREBUILD.EXTERNAL.REPO ${{env.GITHUB_ACTIONS_PREBUILD_EXTERNAL_REPO_FOLDER}}
+                        git add GITHUB_ACTIONS_PREBUILD_CONFIG
+                        git commit -m "update configuration"
+                        echo "'git config -f GITHUB_ACTIONS_PREBUILD_CONFIG GITHUB.ACTIONS.PREBUILD.EXTERNAL.REPO' has been updated"
+                    else
+                        if [[ $(git config -f GITHUB_ACTIONS_PREBUILD_CONFIG --get GITHUB.ACTIONS.PREBUILD.EXTERNAL.REPO) != ${{env.GITHUB_ACTIONS_PREBUILD_EXTERNAL_REPO_FOLDER}} ]]
+                            then
+                                echo
+                                echo "WARNING: values of 'config get GITHUB.ACTIONS.PREBUILD.EXTERNAL.REPO' and 'env.GITHUB_ACTIONS_PREBUILD_EXTERNAL_REPO_FOLDER' differ"
+                                echo
+                                if [[ -e ${{env.GITHUB_ACTIONS_PREBUILD_EXTERNAL_REPO_FOLDER}} ]]
+                                    then
+                                        echo
+                                        echo "ERROR: env.GITHUB_ACTIONS_PREBUILD_EXTERNAL_REPO_FOLDER must not exist"
+                                        echo "please move '${{env.GITHUB_ACTIONS_PREBUILD_EXTERNAL_REPO_FOLDER}}' to another location, or remove it"
+                                        echo
+                                        false
+                                fi
+                                mv -v $(git config -f GITHUB_ACTIONS_PREBUILD_CONFIG --get GITHUB.ACTIONS.PREBUILD.EXTERNAL.REPO) ${{env.GITHUB_ACTIONS_PREBUILD_EXTERNAL_REPO_FOLDER}}
+                                git config -f GITHUB_ACTIONS_PREBUILD_CONFIG GITHUB.ACTIONS.PREBUILD.EXTERNAL.REPO ${{env.GITHUB_ACTIONS_PREBUILD_EXTERNAL_REPO_FOLDER}}
+                                git add GITHUB_ACTIONS_PREBUILD_CONFIG
+                                git commit -m "update configuration"
+                                echo "'git config -f GITHUB_ACTIONS_PREBUILD_CONFIG GITHUB.ACTIONS.PREBUILD.EXTERNAL.REPO' has been updated"
+                        fi
+                fi
+        fi
+        true
+      if: env.PUSH_TO_EXTERNAL_REPO == 'true'
+
+    - name: System - Make sure build folder does not exist
+      run: |
+        if [[ -e ${{env.GITHUB_ACTIONS_PREBUILD_BUILD_FOLDER}} ]]
+            then
+                echo
+                echo "ERROR: env.GITHUB_ACTIONS_PREBUILD_BUILD_FOLDER must not exist"
+                echo "please move '${{env.GITHUB_ACTIONS_PREBUILD_BUILD_FOLDER}}' to another location, or remove it"
+                echo
+                false
+        fi
+
+    - name: Git - Clone submodules
+      run: |
+        git submodule init
+        git config -f GITHUB_ACTIONS_PREBUILD_CONFIG -l | grep -q GITHUB_ACTIONS_PREBUILD.EXTERNAL_REPO && (git submodule deinit ${{env.GITHUB_ACTIONS_PREBUILD_EXTERNAL_REPO_FOLDER}} || true)
+        git submodule update --progress
+
+        git submodule foreach --recursive "\
+                git submodule init; \
+                git config -f GITHUB_ACTIONS_PREBUILD_CONFIG -l | grep -q GITHUB_ACTIONS_PREBUILD.EXTERNAL_REPO && (git submodule deinit \$(git config --get GITHUB_ACTIONS_PREBUILD.EXTERNAL_REPO) || true); \
+                git submodule update --progress; \
+        "
+
+    - name: CMake - Configure
+      # Configure CMake in a 'build' subdirectory. `CMAKE_BUILD_TYPE` is only required if you are using a single-configuration generator such as make.
+      # See https://cmake.org/cmake/help/latest/variable/CMAKE_BUILD_TYPE.html?highlight=cmake_build_type
+      run: |
+        cmake -D GITHUB_ACTIONS_PREBUILD_EXTENSION=${{matrix.extension}} -B ${{env.GITHUB_ACTIONS_PREBUILD_BUILD_FOLDER}} -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}}
+        git status
+
+    - name: CMake - Build
+      # Build your program with the given configuration
+      run: |
+        cmake --build ${{env.GITHUB_ACTIONS_PREBUILD_BUILD_FOLDER}} --config ${{env.BUILD_TYPE}}
+        git status
+      
+    - name: System - List libraries
+      run: |
+        find ${{env.GITHUB_ACTIONS_PREBUILD_BUILD_FOLDER}} -name \*.${{matrix.extension}}
+        git status
+              
+    - name: System - Create <Library Output>/<operating system> directory
+      run: |
+        if [[ -e ${{env.GITHUB_ACTIONS_PREBUILD_OUT_FOLDER}} ]]
+            then
+                if [[ ! -e ${{env.GITHUB_ACTIONS_PREBUILD_OUT_FOLDER}}/${{matrix.os}} ]]
+                    then
+                        mkdir ${{env.GITHUB_ACTIONS_PREBUILD_OUT_FOLDER}}/${{matrix.os}}
+                fi
+            else
+                mkdir ${{env.GITHUB_ACTIONS_PREBUILD_OUT_FOLDER}}
+                mkdir ${{env.GITHUB_ACTIONS_PREBUILD_OUT_FOLDER}}/${{matrix.os}}
+        fi
+        git status
+      if: env.PUSH_TO_EXTERNAL_REPO == 'false'
+      
+    - name: System - EXTERNAL REPO - Create ssh key if needed
+      run: |
+        if [[ ! -e GITHUB_ACTIONS_PREBUILD_SSH_KEY ]]
+            then
+                echo "creating SSH KEY pair"
+                echo
+                echo
+                ssh-keygen -f GITHUB_ACTIONS_PREBUILD_SSH_KEY -t ed25519 -C "GITHUB_ACTIONS_PREBUILD_SSH_KEY" -P ${{env.SECURE_PASSWORD}}
+                echo
+                echo
+                git add GITHUB_ACTIONS_PREBUILD_SSH_KEY*
+                git commit -m "add ssh key pair"
+                git push
+                echo
+                echo
+                echo "SSH KEY pair has been created"
+                echo
+                echo "the SSH KEY pair has been saved in the repository for recovery purposes:"
+                echo "GITHUB_ACTIONS_PREBUILD_SSH_KEY"
+                echo "GITHUB_ACTIONS_PREBUILD_SSH_KEY.pub"
+                echo
+                echo
+                echo "please go to <Your profile> -> Settings -> SSH and GPG Keys"
+                echo
+                echo "Click 'New SSH key' or 'Add SSH key'"
+                echo
+                echo "In the "Title" field, add a descriptive label for the new key"
+                echo
+                echo "Paste your the contents of the public SSH Key into the 'Key' field"
+                echo
+                echo "click 'Add SSH Key'"
+                echo
+                echo "the contents of public SSH KEY is"
+                echo
+                echo "<SSH KEY CONTENTS BEGIN - ACTUAL CONTENTS BELOW>"
+                cat GITHUB_ACTIONS_PREBUILD_SSH_KEY.pub
+                echo "<SSH KEY CONTENTS END - ACTUAL CONTENTS ABOVE>"
+                echo
+                echo
+                echo "I will now pause to give you time to process all of this"
+                echo
+                echo "To continue, please open the SSH session below in your terminal and then exit the session after logging in";
+                echo
+                echo
+                echo "For example:";
+                echo
+                echo "$ ssh <session id>";
+                echo "<press q key to dismiss tmate prompt message>"
+                echo "$ exit"
+                touch GITHUB_ACTIONS_PREBUILD_SSH_KEY_RETURN_FALSE
+        fi
+        echo "                                                                                  "
+        echo "                                                                                  "
+        echo "IMPORTANT: the private SSH Key 'GITHUB_ACTIONS_PREBUILD_SSH_KEY' is encrypted     "
+        echo "                                                                                  "
+        echo "IMPORTANT: the Secure Password used to encrypt the private key is located in the  "
+        echo "           SECURE_PASSWORD variable of this workflow                              "
+        echo "                                                                                  "
+        echo "                                                                                  "
+        echo "IMPORTANT: in order to decrypt this private key, the Secure Password that was used"
+        echo "           to encrypt this key is required                                        "
+        echo "                                                                                  "
+        echo "                                                                                  "
+        echo "IMPORTANT: without the Secure Password, decryption is ALMOST impossible           "
+        echo "                                                                                  "
+        echo "                                                                                  "
+        echo "IMPORTANT: NEVER share your Secure Password with anyone you dont trust            "
+        echo "                                                                                  "
+        echo "                                                                                  "
+        echo "IMPORTANT: if you change your Secure Password then a new key is REQUIRED          "
+        echo "                                                                                  "
+        echo "                                                                                  "
+        echo "IMPORTANT: to generate a new key, please retrigger this workflow after the        "
+        echo "           following file has been deleted from the repository                    "
+        echo "                                                                                  "
+        echo "           GITHUB_ACTIONS_PREBUILD_SSH_KEY                                        "
+        echo "                                                                                  "
+        if [[ -e GITHUB_ACTIONS_PREBUILD_SSH_KEY_RETURN_FALSE ]]
+            then
+                rm GITHUB_ACTIONS_PREBUILD_SSH_KEY_RETURN_FALSE
+                false
+        fi
+      continue-on-error: true
+      id: SSH_STEP
+      if: env.PUSH_TO_EXTERNAL_REPO == 'true'
+
+
+    - name: System - EXTERNAL REPO - Setup tmate session if needed
+      uses: mxschmitt/action-tmate@v3
+      if: env.PUSH_TO_EXTERNAL_REPO == 'true' && steps.SSH_STEP.outcome == 'failure'
+
+    - name: System - EXTERNAL REPO - Configure SSH Key
+      run: |
+        chmod 400 GITHUB_ACTIONS_PREBUILD_SSH_KEY
+        chmod 400 GITHUB_ACTIONS_PREBUILD_SSH_KEY.pub
+      if: env.PUSH_TO_EXTERNAL_REPO == 'true'
+
+    - name: System - EXTERNAL REPO - Make sure github.com exists in ~/.ssh/known_hosts
+      run: |
+        if [[ -e ~/.ssh ]]
+            then
+                if [[ -e ~/.ssh/known_hosts ]]
+                    then
+                        if [[ $(grep -q github.com ~/.ssh/known_hosts; echo $?) != "0" ]]
+                            then
+                                ssh-keyscan github.com 2>&1 >> ~/.ssh/known_hosts
+                        fi
+                    else
+                        ssh-keyscan github.com 2>&1 > ~/.ssh/known_hosts
+                fi
+            else
+                mkdir ~/.ssh
+                ssh-keyscan github.com 2>&1 > ~/.ssh/known_hosts
+        fi
+      if: env.PUSH_TO_EXTERNAL_REPO == 'true'
+
+    - name: System - EXTERNAL REPO - Verify SSH Key
+      run: |
+        eval $(ssh-agent -s)
+        ssh-add GITHUB_ACTIONS_PREBUILD_SSH_KEY <<< ${{env.SECURE_PASSWORD}}
+        ssh -vT git@github.com || true
+      if: env.PUSH_TO_EXTERNAL_REPO == 'true'
+
+    - name: Git - EXTERNAL REPO - Clone
+      run: |
+        if [[ ! -e ${{env.GITHUB_ACTIONS_PREBUILD_EXTERNAL_REPO_FOLDER}}/${{matrix.os}} ]]
+            then
+                git submodule add https://github.com/${{github.repository}}-${{matrix.os}}.git ${{env.GITHUB_ACTIONS_PREBUILD_EXTERNAL_REPO_FOLDER}}/${{matrix.os}}
+            else
+                git submodule update --init ${{env.GITHUB_ACTIONS_PREBUILD_EXTERNAL_REPO_FOLDER}}/${{matrix.os}}
+                cd ${{env.GITHUB_ACTIONS_PREBUILD_EXTERNAL_REPO_FOLDER}}/${{matrix.os}}
+                git checkout main
+        fi
+      if: env.PUSH_TO_EXTERNAL_REPO == 'true'
+
+    - name: Git - EXTERNAL REPO - Create branch if needed
+      run: |
+        if [[ ! -e ${{env.GITHUB_ACTIONS_PREBUILD_EXTERNAL_REPO_FOLDER}}/${{matrix.os}}/DO_NOT_DELETE_ME.GITHUB_ACTIONS_PREBUILD_EXTERNAL_REPO_RESET_POINT ]]
+            then
+                eval $(ssh-agent -s)
+                ssh-add GITHUB_ACTIONS_PREBUILD_SSH_KEY <<< ${{env.SECURE_PASSWORD}}
+                cd ${{env.GITHUB_ACTIONS_PREBUILD_EXTERNAL_REPO_FOLDER}}/${{matrix.os}}
+                
+                # TODO
+                
+                # rm -rf .git
+                # git init
+                touch DO_NOT_DELETE_ME.GITHUB_ACTIONS_PREBUILD_EXTERNAL_REPO_RESET_POINT
+                git add DO_NOT_DELETE_ME.GITHUB_ACTIONS_PREBUILD_EXTERNAL_REPO_RESET_POINT
+                git commit -m "first commit"
+                git branch -M main
+                git remote set-url origin https://github.com/${{github.repository}}-${{matrix.os}}.git
+                git push --set-upstream origin main --force --repo ssh://git@github.com/${{github.repository}}-${{matrix.os}}.git
+        fi
+      if: env.PUSH_TO_EXTERNAL_REPO == 'true'
+
+    - name: System - Clean split files
+      run: |
+        if [[ ${{env.PUSH_TO_EXTERNAL_REPO}} == 'true' ]]
+            then
+                find ${{env.GITHUB_ACTIONS_PREBUILD_EXTERNAL_REPO_FOLDER}}/${{matrix.os}} -name \*.SPLIT_\* -exec rm -f {} \;
+            else
+                find ${{env.GITHUB_ACTIONS_PREBUILD_OUT_FOLDER}}/${{matrix.os}} -name \*.SPLIT_\* -exec rm -f {} \;
+        fi
+        git status
+
+    - name: System - Copy files from build directory
+      run: |
+        if [[ ${{env.PUSH_TO_EXTERNAL_REPO}} == 'true' ]]
+            then
+                find ${{env.GITHUB_ACTIONS_PREBUILD_BUILD_FOLDER}} -name \*.${{matrix.extension}} -exec cp -v {} ${{env.GITHUB_ACTIONS_PREBUILD_EXTERNAL_REPO_FOLDER}}/${{matrix.os}}/ \;
+            else
+                find ${{env.GITHUB_ACTIONS_PREBUILD_BUILD_FOLDER}} -name \*.${{matrix.extension}} -exec cp -v {} ${{env.GITHUB_ACTIONS_PREBUILD_OUT_FOLDER}}/${{matrix.os}}/ \;
+        fi
+        git status
+        
+    - name: System - Remove build directory
+      run: |
+        rm -rf ${{env.GITHUB_ACTIONS_PREBUILD_BUILD_FOLDER}}
+        git status
+        
+    - name: System - Split files into smaller files (Operating System == macOS-latest)
+      run: |
+        chmod +x ./split_files.sh
+        if [[ ${{env.PUSH_TO_EXTERNAL_REPO}} == 'true' ]]
+            then
+                ./split_files.sh ${{env.GITHUB_ACTIONS_PREBUILD_EXTERNAL_REPO_FOLDER}}/${{matrix.os}} ${{matrix.extension}} "${{matrix.get_chmod}}"
+            else
+                ./split_files.sh ${{env.GITHUB_ACTIONS_PREBUILD_OUT_FOLDER}}/${{matrix.os}} ${{matrix.extension}} "stat -f \"%OLp\""
+        fi
+        git status
+      if: matrix.os == 'macOS-latest'
+
+    - name: System - Split files into smaller files (Operating System != macOS-latest)
+      run: |
+        chmod +x ./split_files.sh
+        if [[ ${{env.PUSH_TO_EXTERNAL_REPO}} == 'true' ]]
+            then
+                ./split_files.sh ${{env.GITHUB_ACTIONS_PREBUILD_EXTERNAL_REPO_FOLDER}}/${{matrix.os}} ${{matrix.extension}} "${{matrix.get_chmod}}"
+            else
+                ./split_files.sh ${{env.GITHUB_ACTIONS_PREBUILD_OUT_FOLDER}}/${{matrix.os}} ${{matrix.extension}} "stat --format \"%a\""
+        fi
+        git status
+      if: matrix.os != 'macOS-latest'
+
+    - name: Git - Add files
+      run: |
+        if [[ ${{env.PUSH_TO_EXTERNAL_REPO}} == 'true' ]]
+            then
+                cd ${{env.GITHUB_ACTIONS_PREBUILD_EXTERNAL_REPO_FOLDER}}/${{matrix.os}}
+                git add -Av
+            else
+                git add -Av ${{env.GITHUB_ACTIONS_PREBUILD_OUT_FOLDER}}/${{matrix.os}}
+        fi
+        git status
+      
+    - name: Git - Commit
+      continue-on-error: true
+      run: |
+        if [[ ${{env.PUSH_TO_EXTERNAL_REPO}} == 'true' ]]
+            then
+                cd ${{env.GITHUB_ACTIONS_PREBUILD_EXTERNAL_REPO_FOLDER}}/${{matrix.os}}
+        fi
+        git commit -m "push prebuilts for ${{matrix.os}}" || true
+        git status
+
+    - name: Git - Push
+      run: |
+        if [[ ${{env.PUSH_TO_EXTERNAL_REPO}} == 'true' ]]
+            then
+                eval $(ssh-agent -s)
+                ssh-add GITHUB_ACTIONS_PREBUILD_SSH_KEY <<< ${{env.SECURE_PASSWORD}}
+                cd ${{env.GITHUB_ACTIONS_PREBUILD_EXTERNAL_REPO_FOLDER}}/${{matrix.os}}
+                git push --repo ssh://git@github.com/${{github.repository}}-${{matrix.os}}.git
+            else
+                git push
+        fi
+        git status
+
+    - name: Git - Add submodule
+      run: |
+        if [[ ${{env.PUSH_TO_EXTERNAL_REPO}} == 'true' ]]
+            then
+                git add -v ${{env.GITHUB_ACTIONS_PREBUILD_EXTERNAL_REPO_FOLDER}}/${{matrix.os}}
+            else
+                git add -Av ${{env.GITHUB_ACTIONS_PREBUILD_OUT_FOLDER}}/${{matrix.os}}
+        fi
+        git status
+      if: env.PUSH_TO_EXTERNAL_REPO == 'true'
+
+    - name: Git - Commit submodule
+      continue-on-error: true
+      run: |
+        git commit -m "update submodule ${{matrix.os}}" || true
+        git status
+      if: env.PUSH_TO_EXTERNAL_REPO == 'true'
+
+    - name: Git - Push submodule
+      run: |
+        git push
+        git status
+      if: env.PUSH_TO_EXTERNAL_REPO == 'true'
