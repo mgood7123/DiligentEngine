@@ -262,20 +262,21 @@ jobs:
       run: |
         if [[ ! -e GITHUB_ACTIONS_PREBUILD_SSH_KEY ]]
             then
+                touch GITHUB_ACTIONS_PREBUILD_SSH_KEY_NEEDS_PUSH
+                if [[ -e GITHUB_ACTIONS_PREBUILD_SSH_KEY.pub ]]
+                    then
+                        rm GITHUB_ACTIONS_PREBUILD_SSH_KEY.pub
+                fi
                 echo "creating SSH KEY pair"
                 echo
                 echo
                 ssh-keygen -f GITHUB_ACTIONS_PREBUILD_SSH_KEY -t ed25519 -C "GITHUB_ACTIONS_PREBUILD_SSH_KEY" -P ${{env.SECURE_PASSWORD}}
                 echo
                 echo
-                git add GITHUB_ACTIONS_PREBUILD_SSH_KEY*
-                git commit -m "add ssh key pair"
-                git push
-                echo
-                echo
                 echo "SSH KEY pair has been created"
                 echo
-                echo "the SSH KEY pair has been saved in the repository for recovery purposes:"
+                echo "the SSH KEY pair will be saved in the repository for recovery purposes upon successfull verification of the SSH KEY pair"
+                echo "SSH KEY pair:"
                 echo "GITHUB_ACTIONS_PREBUILD_SSH_KEY"
                 echo "GITHUB_ACTIONS_PREBUILD_SSH_KEY.pub"
                 echo
@@ -284,7 +285,7 @@ jobs:
                 echo
                 echo "Click 'New SSH key' or 'Add SSH key'"
                 echo
-                echo "In the "Title" field, add a descriptive label for the new key"
+                echo "In the 'Title' field, add a descriptive label for the new key"
                 echo
                 echo "Paste your the contents of the public SSH Key into the 'Key' field"
                 echo
@@ -374,12 +375,26 @@ jobs:
         fi
       if: env.PUSH_TO_EXTERNAL_REPO == 'true'
 
-    - name: System - EXTERNAL REPO - Verify SSH Key
+    - name: Git - EXTERNAL REPO - Verify and push SSH Key
       run: |
         eval $(ssh-agent -s)
         ssh-add GITHUB_ACTIONS_PREBUILD_SSH_KEY <<< ${{env.SECURE_PASSWORD}}
         ssh-add -l -E sha256
-        ssh -vT git@github.com || true
+        if [[ $( (ssh -T git@github.com 2>&1 || true) | grep -q "successfully authenticated"; echo $?) == 0 ]]
+            then
+                echo "SSH Key authentication success"
+                if [[ -e GITHUB_ACTIONS_PREBUILD_SSH_KEY_NEEDS_PUSH ]]
+                    then
+                        rm GITHUB_ACTIONS_PREBUILD_SSH_KEY_NEEDS_PUSH
+                        git add GITHUB_ACTIONS_PREBUILD_SSH_KEY
+                        git add GITHUB_ACTIONS_PREBUILD_SSH_KEY.pub
+                        git commit -m "upload SSH Key" || true
+                        git push
+                fi
+            else
+                echo "SSH Key authentication failure:"
+                ssh -vT git@github.com
+        fi
       if: env.PUSH_TO_EXTERNAL_REPO == 'true'
 
     - name: Git - EXTERNAL REPO - Clone
@@ -393,10 +408,7 @@ jobs:
             else
                 git submodule update --init ${{env.GITHUB_ACTIONS_PREBUILD_EXTERNAL_REPO_FOLDER}}/${{matrix.os}} || true
                 cd ${{env.GITHUB_ACTIONS_PREBUILD_EXTERNAL_REPO_FOLDER}}/${{matrix.os}}
-                if [[ -e DO_NOT_DELETE_ME.GITHUB_ACTIONS_PREBUILD_EXTERNAL_REPO_RESET_POINT ]]
-                    then
-                        git checkout main
-                fi
+                git checkout main || true
         fi
       if: env.PUSH_TO_EXTERNAL_REPO == 'true'
 
