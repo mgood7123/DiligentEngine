@@ -224,6 +224,8 @@ jobs:
       run: |
         hdiutil attach -mountpoint Vulkan VulkanSDK.dmg
         sudo ./Vulkan/InstallVulkan.app/Contents/MacOS/InstallVulkan --accept-licenses --default-answer --confirm-command install
+        hdiutil detach Vulkan
+        rm VulkanSDK.dmg
       if: matrix.os == 'macOS-latest'
 
     - name: Git - Clone submodules
