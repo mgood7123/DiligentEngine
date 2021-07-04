@@ -215,12 +215,12 @@ jobs:
                 false
         fi
         
-    - name: System - Download VulkanSDK MacOS
+    - name: System - Download VulkanSDK (Mac OS)
       run: |
         curl https://sdk.lunarg.com/sdk/download/1.2.176.1/mac/vulkansdk-macos-1.2.176.1.dmg -o VulkanSDK.dmg
       if: matrix.os == 'macOS-latest'
 
-    - name: System - Install VulkanSDK MacOS
+    - name: System - Install VulkanSDK (Mac OS)
       run: |
         hdiutil attach -mountpoint Vulkan VulkanSDK.dmg
         sudo ./Vulkan/InstallVulkan.app/Contents/MacOS/InstallVulkan --root ~/VulkanSDK --accept-licenses --default-answer --confirm-command install
@@ -245,7 +245,7 @@ jobs:
                 git submodule update; \
         "
 
-    - name: CMake - Configure
+    - name: CMake - Configure (Mac OS)
       # Configure CMake in a 'build' subdirectory. `CMAKE_BUILD_TYPE` is only required if you are using a single-configuration generator such as make.
       # See https://cmake.org/cmake/help/latest/variable/CMAKE_BUILD_TYPE.html?highlight=cmake_build_type
       env:
@@ -253,15 +253,17 @@ jobs:
       run: |
         cmake -B ${{env.GITHUB_ACTIONS_PREBUILD_BUILD_FOLDER}} -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}}
         git status
+      if: matrix.os == 'macOS-latest'
 
-    - name: CMake - Build
+    - name: CMake - Build (Mac OS)
       # Build your program with the given configuration
       env:
         VULKAN_SDK: ~/VulkanSDK
       run: |
         cmake --build ${{env.GITHUB_ACTIONS_PREBUILD_BUILD_FOLDER}} --config ${{env.BUILD_TYPE}}
         git status
-      
+      if: matrix.os == 'macOS-latest'
+
     - name: System - List libraries
       run: |
         find ${{env.GITHUB_ACTIONS_PREBUILD_BUILD_FOLDER}} -name \*.${{matrix.extension}}
