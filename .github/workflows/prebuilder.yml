@@ -94,13 +94,19 @@ jobs:
         include:
         
 #        - os: ubuntu-latest
-#          extension: so
+#          shared_library_extension: so
+#          static_library_extension: a
+#          additional_static_library_extension: ""
 
         - os: macOS-latest
-          extension: dylib
-
+          shared_library_extension: dylib
+          static_library_extension: a
+          additional_static_library_extension: ""
+          
 #        - os: windows-latest
-#          extension: dll
+#          shared_library_extension: dll
+#          static_library_extension: lib
+#          additional_static_library_extension: def
 
     defaults:
       run:
@@ -250,7 +256,12 @@ jobs:
       run: |
         export VULKAN_SDK=~/VulkanSDK
         ls -l $VULKAN_SDK
-        cmake -B ${{env.GITHUB_ACTIONS_PREBUILD_BUILD_FOLDER}} -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}}
+        cmake \
+            -D GITHUB_ACTIONS_PREBUILD_SHARED_LIBRARY_EXTENSION=${{matrix.shared_library_extension}} \
+            -D GITHUB_ACTIONS_PREBUILD_STATIC_LIBRARY_EXTENSION=${{matrix.static_library_extension}} \
+            -D GITHUB_ACTIONS_PREBUILD_ADDITIONAL_STATIC_LIBRARY_EXTENSION=${{matrix.additional_static_library_extension}} \
+            -B ${{env.GITHUB_ACTIONS_PREBUILD_BUILD_FOLDER}} \
+            -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}}
         git status
       if: matrix.os == 'macOS-latest'
 
@@ -264,7 +275,12 @@ jobs:
 
     - name: System - List libraries
       run: |
-        find ${{env.GITHUB_ACTIONS_PREBUILD_BUILD_FOLDER}} -name \*.${{matrix.extension}}
+        find ${{env.GITHUB_ACTIONS_PREBUILD_BUILD_FOLDER}} -name \*.${{matrix.shared_library_extension}}
+        find ${{env.GITHUB_ACTIONS_PREBUILD_BUILD_FOLDER}} -name \*.${{matrix.static_library_extension}}
+        if [[ ${{matrix.os}} == 'windows-latest' ]]
+            then
+                find ${{env.GITHUB_ACTIONS_PREBUILD_BUILD_FOLDER}} -name \*.${{matrix.additional_static_library_extension}}
+        fi
         git status
               
     - name: System - Create <Library Output>/<operating system> directory
@@ -442,19 +458,26 @@ jobs:
       run: |
         if [[ ${{env.PUSH_TO_EXTERNAL_REPO}} == 'true' ]]
             then
-                find ${{env.GITHUB_ACTIONS_PREBUILD_EXTERNAL_REPO_FOLDER}}/${{matrix.os}} -name \*.SPLIT_\* -exec rm -f {} \;
+                export GITHUB_ACTIONS_PREBUILD_OUT_FOLDER=${{env.GITHUB_ACTIONS_PREBUILD_EXTERNAL_REPO_FOLDER}}
             else
-                find ${{env.GITHUB_ACTIONS_PREBUILD_OUT_FOLDER}}/${{matrix.os}} -name \*.SPLIT_\* -exec rm -f {} \;
+                export GITHUB_ACTIONS_PREBUILD_OUT_FOLDER=${{env.GITHUB_ACTIONS_PREBUILD_OUT_FOLDER}}
         fi
+        find $GITHUB_ACTIONS_PREBUILD_OUT_FOLDER/${{matrix.os}} -name \*.SPLIT_\* -exec rm -f {} \;
         git status
 
     - name: System - Copy files from build directory
       run: |
         if [[ ${{env.PUSH_TO_EXTERNAL_REPO}} == 'true' ]]
             then
-                find ${{env.GITHUB_ACTIONS_PREBUILD_BUILD_FOLDER}} -name \*.${{matrix.extension}} -exec cp -v {} ${{env.GITHUB_ACTIONS_PREBUILD_EXTERNAL_REPO_FOLDER}}/${{matrix.os}}/ \;
+                export GITHUB_ACTIONS_PREBUILD_OUT_FOLDER=${{env.GITHUB_ACTIONS_PREBUILD_EXTERNAL_REPO_FOLDER}}
             else
-                find ${{env.GITHUB_ACTIONS_PREBUILD_BUILD_FOLDER}} -name \*.${{matrix.extension}} -exec cp -v {} ${{env.GITHUB_ACTIONS_PREBUILD_OUT_FOLDER}}/${{matrix.os}}/ \;
+                export GITHUB_ACTIONS_PREBUILD_OUT_FOLDER=${{env.GITHUB_ACTIONS_PREBUILD_OUT_FOLDER}}
+        fi
+        find ${{env.GITHUB_ACTIONS_PREBUILD_BUILD_FOLDER}} -name \*.${{matrix.shared_library_extension}} -exec cp -v {} $GITHUB_ACTIONS_PREBUILD_OUT_FOLDER/${{matrix.os}}/ \;
+        find ${{env.GITHUB_ACTIONS_PREBUILD_BUILD_FOLDER}} -name \*.${{matrix.static_library_extension}} -exec cp -v {} $GITHUB_ACTIONS_PREBUILD_OUT_FOLDER/${{matrix.os}}/ \;
+        if [[ ${{matrix.os}} == 'windows-latest' ]]
+            then
+                find ${{env.GITHUB_ACTIONS_PREBUILD_BUILD_FOLDER}} -name \*.${{matrix.additional_static_library_extension}} -exec cp -v {} $GITHUB_ACTIONS_PREBUILD_OUT_FOLDER/${{matrix.os}}/ \;
         fi
         git status
         
@@ -463,29 +486,27 @@ jobs:
         rm -rf ${{env.GITHUB_ACTIONS_PREBUILD_BUILD_FOLDER}}
         git status
         
-    - name: System - Split files into smaller files (Operating System == macOS-latest)
+    - name: System - Split large files into smaller files if needed
       run: |
         chmod +x ./split_files.sh
         if [[ ${{env.PUSH_TO_EXTERNAL_REPO}} == 'true' ]]
             then
-                ./split_files.sh ${{env.GITHUB_ACTIONS_PREBUILD_EXTERNAL_REPO_FOLDER}}/${{matrix.os}} ${{matrix.extension}} "${{matrix.get_chmod}}"
+                export GITHUB_ACTIONS_PREBUILD_OUT_FOLDER=${{env.GITHUB_ACTIONS_PREBUILD_EXTERNAL_REPO_FOLDER}}
             else
-                ./split_files.sh ${{env.GITHUB_ACTIONS_PREBUILD_OUT_FOLDER}}/${{matrix.os}} ${{matrix.extension}} "stat -f \"%OLp\""
+                export GITHUB_ACTIONS_PREBUILD_OUT_FOLDER=${{env.GITHUB_ACTIONS_PREBUILD_OUT_FOLDER}}
         fi
-        git status
-      if: matrix.os == 'macOS-latest'
-
-    - name: System - Split files into smaller files (Operating System != macOS-latest)
-      run: |
-        chmod +x ./split_files.sh
-        if [[ ${{env.PUSH_TO_EXTERNAL_REPO}} == 'true' ]]
+        if [[ ${{matrix.os}} == 'macOS-latest' ]]
             then
-                ./split_files.sh ${{env.GITHUB_ACTIONS_PREBUILD_EXTERNAL_REPO_FOLDER}}/${{matrix.os}} ${{matrix.extension}} "${{matrix.get_chmod}}"
+                export GITHUB_ACTIONS_PREBUILD_CHMOD="stat -f \"%OLp\""
             else
-                ./split_files.sh ${{env.GITHUB_ACTIONS_PREBUILD_OUT_FOLDER}}/${{matrix.os}} ${{matrix.extension}} "stat --format \"%a\""
+                export GITHUB_ACTIONS_PREBUILD_CHMOD="stat --format \"%a\""
         fi
-        git status
-      if: matrix.os != 'macOS-latest'
+        ./split_files.sh $GITHUB_ACTIONS_PREBUILD_OUT_FOLDER/${{matrix.os}} ${{matrix.shared_library_extension}} "$GITHUB_ACTIONS_PREBUILD_CHMOD"
+        ./split_files.sh $GITHUB_ACTIONS_PREBUILD_OUT_FOLDER/${{matrix.os}} ${{matrix.shared_library_extension}} "$GITHUB_ACTIONS_PREBUILD_CHMOD"
+        if [[ ${{matrix.os}} == 'windows-latest' ]]
+            then
+                ./split_files.sh $GITHUB_ACTIONS_PREBUILD_OUT_FOLDER/${{matrix.os}} ${{matrix.additional_static_library_extension}} "$GITHUB_ACTIONS_PREBUILD_CHMOD"
+        fi
 
     - name: Git - Add files
       run: |
