@@ -267,7 +267,6 @@ jobs:
       # See https://cmake.org/cmake/help/latest/variable/CMAKE_BUILD_TYPE.html?highlight=cmake_build_type
       run: |
         export VULKAN_SDK=~/VulkanSDK
-        ls -l $VULKAN_SDK
         cmake \
             -D GITHUB_ACTIONS_PREBUILD_SHARED_LIBRARY_EXTENSION=${{matrix.shared_library_extension}} \
             -D GITHUB_ACTIONS_PREBUILD_STATIC_LIBRARY_EXTENSION=${{matrix.static_library_extension}} \
