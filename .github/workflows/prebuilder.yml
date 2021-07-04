@@ -250,7 +250,7 @@ jobs:
       run: |
         git submodule init
         git config -f GITHUB_ACTIONS_PREBUILD_CONFIG -l | grep -q GITHUB_ACTIONS_PREBUILD.EXTERNAL_REPO && (git submodule deinit ${{env.GITHUB_ACTIONS_PREBUILD_EXTERNAL_REPO_FOLDER}} || true)
-        git submodule update
+        git submodule update || true
 
         git submodule foreach --recursive "\
                 git submodule init; \
@@ -259,7 +259,7 @@ jobs:
                         git config -f GITHUB_ACTIONS_PREBUILD_CONFIG -l | grep -q GITHUB_ACTIONS_PREBUILD.EXTERNAL_REPO && \
                         (git submodule deinit \$(git config --get GITHUB_ACTIONS_PREBUILD.EXTERNAL_REPO) || true); \
                 fi; \
-                git submodule update; \
+                git submodule update || true; \
         "
 
     - name: CMake - Configure (Mac OS)
@@ -437,11 +437,14 @@ jobs:
       run: |
         if [[ ! -e ${{env.GITHUB_ACTIONS_PREBUILD_EXTERNAL_REPO_FOLDER}}/${{matrix.os}} ]]
             then
-                git submodule add https://github.com/${{github.repository}}-${{matrix.os}}.git ${{env.GITHUB_ACTIONS_PREBUILD_EXTERNAL_REPO_FOLDER}}/${{matrix.os}}
+                git submodule add https://github.com/${{github.repository}}-${{matrix.os}}.git ${{env.GITHUB_ACTIONS_PREBUILD_EXTERNAL_REPO_FOLDER}}/${{matrix.os}} || true
             else
-                git submodule update --init ${{env.GITHUB_ACTIONS_PREBUILD_EXTERNAL_REPO_FOLDER}}/${{matrix.os}}
+                git submodule update --init ${{env.GITHUB_ACTIONS_PREBUILD_EXTERNAL_REPO_FOLDER}}/${{matrix.os}} || true
                 cd ${{env.GITHUB_ACTIONS_PREBUILD_EXTERNAL_REPO_FOLDER}}/${{matrix.os}}
-                git checkout main
+                if [[ -e DO_NOT_DELETE_ME.GITHUB_ACTIONS_PREBUILD_EXTERNAL_REPO_RESET_POINT ]]
+                    then
+                        git checkout main
+                fi
         fi
       if: env.PUSH_TO_EXTERNAL_REPO == 'true'
 
