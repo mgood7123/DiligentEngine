@@ -43,6 +43,23 @@ env:
   
   PUSH_TO_EXTERNAL_REPO: true
   
+  # Set this to true in order to keep your external repository history
+  # Setting this to false will delete all history in your external repository
+  
+  # this can be useful if you push large files to your repository
+  
+  # if you push a 500 MB file, and then update the 500 MB file and push it
+  # your total repository size will be 1 GB
+  
+  # when keep history is false your repo history, including the 500 MB file, will be deleted
+  # resulting in your repo using 0 MB, so if you update and push the 500 MB file
+  # then your total repository size will be 500 MB
+  
+  # this has the advantage of keeping your repository size minimum
+  # at the cost of always pushing files even if they have not been updated
+  
+  KEEP_HISTORY: false
+  
   
 
   # Customize the external repo output folder here
@@ -220,20 +237,24 @@ jobs:
                 echo
                 false
         fi
-
+      
     - name: Git - Clone submodules
       run: |
+        echo executing submodule init
         git submodule init
-        git config -f GITHUB_ACTIONS_PREBUILD_CONFIG -l | grep -q GITHUB_ACTIONS_PREBUILD.EXTERNAL_REPO && (git submodule deinit ${{env.GITHUB_ACTIONS_PREBUILD_EXTERNAL_REPO_FOLDER}} || true)
+        git config -f GITHUB_ACTIONS_PREBUILD_CONFIG -l | grep -q GITHUB_ACTIONS_PREBUILD.EXTERNAL_REPO && (echo executing submodule denit; git submodule deinit ${{env.GITHUB_ACTIONS_PREBUILD_EXTERNAL_REPO_FOLDER}} || true)
+        echo executing submodule update
         git submodule update || true
 
         git submodule foreach --recursive "\
+                echo executing submodule init; \
                 git submodule init; \
                 if [[ -e GITHUB_ACTIONS_PREBUILD_CONFIG ]]; \
                     then \
                         git config -f GITHUB_ACTIONS_PREBUILD_CONFIG -l | grep -q GITHUB_ACTIONS_PREBUILD.EXTERNAL_REPO && \
-                        (git submodule deinit \$(git config --get GITHUB_ACTIONS_PREBUILD.EXTERNAL_REPO) || true); \
+                        (echo executing submodule denit; git submodule deinit \$(git config --get GITHUB_ACTIONS_PREBUILD.EXTERNAL_REPO) || true); \
                 fi; \
+                echo executing submodule update; \
                 git submodule update || true; \
         "
 
@@ -357,14 +378,18 @@ jobs:
       run: |
         eval $(ssh-agent -s)
         ssh-add GITHUB_ACTIONS_PREBUILD_SSH_KEY <<< ${{env.SECURE_PASSWORD}}
+        ssh-add -l -E sha256
         ssh -vT git@github.com || true
       if: env.PUSH_TO_EXTERNAL_REPO == 'true'
 
     - name: Git - EXTERNAL REPO - Clone
       run: |
+        eval $(ssh-agent -s)
+        ssh-add GITHUB_ACTIONS_PREBUILD_SSH_KEY <<< ${{env.SECURE_PASSWORD}}
+        ssh-add -l -E sha256
         if [[ ! -e ${{env.GITHUB_ACTIONS_PREBUILD_EXTERNAL_REPO_FOLDER}}/${{matrix.os}} ]]
             then
-                git submodule add https://github.com/${{github.repository}}-${{matrix.os}}.git ${{env.GITHUB_ACTIONS_PREBUILD_EXTERNAL_REPO_FOLDER}}/${{matrix.os}} || true
+                git submodule add ssh://git@github.com/${{github.repository}}-${{matrix.os}}.git ${{env.GITHUB_ACTIONS_PREBUILD_EXTERNAL_REPO_FOLDER}}/${{matrix.os}} || true
             else
                 git submodule update --init ${{env.GITHUB_ACTIONS_PREBUILD_EXTERNAL_REPO_FOLDER}}/${{matrix.os}} || true
                 cd ${{env.GITHUB_ACTIONS_PREBUILD_EXTERNAL_REPO_FOLDER}}/${{matrix.os}}
@@ -375,24 +400,45 @@ jobs:
         fi
       if: env.PUSH_TO_EXTERNAL_REPO == 'true'
 
-    - name: Git - EXTERNAL REPO - Create branch if needed
+    - name: Git - EXTERNAL REPO - Init/Reset
       run: |
-        if [[ ! -e ${{env.GITHUB_ACTIONS_PREBUILD_EXTERNAL_REPO_FOLDER}}/${{matrix.os}}/DO_NOT_DELETE_ME.GITHUB_ACTIONS_PREBUILD_EXTERNAL_REPO_RESET_POINT ]]
+        eval $(ssh-agent -s)
+        ssh-add GITHUB_ACTIONS_PREBUILD_SSH_KEY <<< ${{env.SECURE_PASSWORD}}
+        ssh-add -l -E sha256
+        cd ${{env.GITHUB_ACTIONS_PREBUILD_EXTERNAL_REPO_FOLDER}}/${{matrix.os}}
+        if [[ ! -e GITHUB_ACTIONS_PREBUILD_EXTERNAL_REPO_RESET_POINT ]]
             then
-                eval $(ssh-agent -s)
-                ssh-add GITHUB_ACTIONS_PREBUILD_SSH_KEY <<< ${{env.SECURE_PASSWORD}}
-                cd ${{env.GITHUB_ACTIONS_PREBUILD_EXTERNAL_REPO_FOLDER}}/${{matrix.os}}
+                echo "initializing empty repo"
                 
-                # TODO
+                if [[ -e DO_NOT_DELETE_ME.GITHUB_ACTIONS_PREBUILD_EXTERNAL_REPO_RESET_POINT ]]
+                    then
+                        rm DO_NOT_DELETE_ME.GITHUB_ACTIONS_PREBUILD_EXTERNAL_REPO_RESET_POINT
+                        rm -rf .git
+                        git init
+                        git remote add origin url
+                fi
                 
-                # rm -rf .git
-                # git init
-                touch DO_NOT_DELETE_ME.GITHUB_ACTIONS_PREBUILD_EXTERNAL_REPO_RESET_POINT
-                git add DO_NOT_DELETE_ME.GITHUB_ACTIONS_PREBUILD_EXTERNAL_REPO_RESET_POINT
+                touch GITHUB_ACTIONS_PREBUILD_EXTERNAL_REPO_RESET_POINT
+                git add GITHUB_ACTIONS_PREBUILD_EXTERNAL_REPO_RESET_POINT
                 git commit -m "first commit"
+                
                 git branch -M main
-                git remote set-url origin https://github.com/${{github.repository}}-${{matrix.os}}.git
-                git push --set-upstream origin main --force --repo ssh://git@github.com/${{github.repository}}-${{matrix.os}}.git
+                git remote set-url origin ssh://git@github.com/${{github.repository}}-${{matrix.os}}.git
+                git push --set-upstream origin main --force
+                
+                cd ../../
+                rm -rf ${{env.GITHUB_ACTIONS_PREBUILD_EXTERNAL_REPO_FOLDER}}/${{matrix.os}}
+                rm -rf .git/modules/${{env.GITHUB_ACTIONS_PREBUILD_EXTERNAL_REPO_FOLDER}}/${{matrix.os}}
+                
+                git submodule add ssh://git@github.com/${{github.repository}}-${{matrix.os}}.git ${{env.GITHUB_ACTIONS_PREBUILD_EXTERNAL_REPO_FOLDER}}/${{matrix.os}} || true
+            else
+                if [[ ${{env.KEEP_HISTORY}} == 'false' ]]
+                    then
+                        echo "resetting repo"
+                        git reset --hard $(git log -n 1 --pretty=format:%H -- GITHUB_ACTIONS_PREBUILD_EXTERNAL_REPO_RESET_POINT)
+                        git remote set-url origin ssh://git@github.com/${{github.repository}}-${{matrix.os}}.git
+                        git push --force
+                fi
         fi
       if: env.PUSH_TO_EXTERNAL_REPO == 'true'
       
@@ -468,7 +514,7 @@ jobs:
         fi
         git status
       if: env.PUSH_TO_EXTERNAL_REPO == 'false'
-      
+
     - name: System - Clean split files
       run: |
         if [[ ${{env.PUSH_TO_EXTERNAL_REPO}} == 'true' ]]
@@ -551,16 +597,15 @@ jobs:
                 eval $(ssh-agent -s)
                 ssh-add GITHUB_ACTIONS_PREBUILD_SSH_KEY <<< ${{env.SECURE_PASSWORD}}
                 cd ${{env.GITHUB_ACTIONS_PREBUILD_EXTERNAL_REPO_FOLDER}}/${{matrix.os}}
-                git push --repo ssh://git@github.com/${{github.repository}}-${{matrix.os}}.git
-            else
-                git push
         fi
+        git push
         git status
 
     - name: Git - Add submodule
       run: |
         if [[ ${{env.PUSH_TO_EXTERNAL_REPO}} == 'true' ]]
             then
+                git add -v .gitmodules
                 git add -v ${{env.GITHUB_ACTIONS_PREBUILD_EXTERNAL_REPO_FOLDER}}/${{matrix.os}}
             else
                 git add -Av ${{env.GITHUB_ACTIONS_PREBUILD_OUT_FOLDER}}/${{matrix.os}}
