@@ -223,7 +223,7 @@ jobs:
     - name: System - Install VulkanSDK MacOS
       run: |
         hdiutil attach -mountpoint Vulkan VulkanSDK.dmg
-        sudo ./Vulkan/InstallVulkan.app/Contents/MacOS/InstallVulkan --root ~/VulkanSDK --accept-licenses --default-answer --confirm-command install
+        sudo ./Vulkan/InstallVulkan.app/Contents/MacOS/InstallVulkan --accept-licenses --default-answer --confirm-command install
       if: matrix.os == 'macOS-latest'
 
     - name: Git - Clone submodules
