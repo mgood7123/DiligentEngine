@@ -220,31 +220,6 @@ jobs:
                 echo
                 false
         fi
-        
-    - name: System - Download VulkanSDK (Mac OS)
-      run: |
-        curl https://sdk.lunarg.com/sdk/download/1.2.176.1/mac/vulkansdk-macos-1.2.176.1.dmg -o VulkanSDK.dmg
-      if: matrix.os == 'macOS-latest'
-
-    - name: System - Attach VulkanSDK DMG (Mac OS)
-      run: |
-        hdiutil attach -mountpoint Vulkan VulkanSDK.dmg
-      if: matrix.os == 'macOS-latest'
-
-    - name: System - Install VulkanSDK (Mac OS)
-      run: |
-        sudo ./Vulkan/InstallVulkan.app/Contents/MacOS/InstallVulkan --root ~/VulkanSDK --accept-licenses --default-answer --confirm-command install
-      if: matrix.os == 'macOS-latest'
-
-    - name: System - Detach VulkanSDK DMG (Mac OS)
-      run: |
-        hdiutil detach Vulkan
-      if: matrix.os == 'macOS-latest'
-
-    - name: System - Delete VulkanSDK DMG (Mac OS)
-      run: |
-        rm VulkanSDK.dmg
-      if: matrix.os == 'macOS-latest'
 
     - name: Git - Clone submodules
       run: |
@@ -262,54 +237,6 @@ jobs:
                 git submodule update || true; \
         "
 
-    - name: CMake - Configure (Mac OS)
-      # Configure CMake in a 'build' subdirectory. `CMAKE_BUILD_TYPE` is only required if you are using a single-configuration generator such as make.
-      # See https://cmake.org/cmake/help/latest/variable/CMAKE_BUILD_TYPE.html?highlight=cmake_build_type
-      run: |
-        export VULKAN_SDK=~/VulkanSDK
-        cmake \
-            -D GITHUB_ACTIONS_PREBUILD_OS=${{matrix.os}} \
-            -D GITHUB_ACTIONS_PREBUILD_SHARED_LIBRARY_EXTENSION=${{matrix.shared_library_extension}} \
-            -D GITHUB_ACTIONS_PREBUILD_STATIC_LIBRARY_EXTENSION=${{matrix.static_library_extension}} \
-            -D GITHUB_ACTIONS_PREBUILD_ADDITIONAL_STATIC_LIBRARY_EXTENSION=${{matrix.additional_static_library_extension}} \
-            -B ${{env.GITHUB_ACTIONS_PREBUILD_BUILD_FOLDER}} \
-            -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}}
-        git status
-      if: matrix.os == 'macOS-latest'
-
-    - name: CMake - Build (Mac OS)
-      # Build your program with the given configuration
-      run: |
-        export VULKAN_SDK=~/VulkanSDK
-        cmake --build ${{env.GITHUB_ACTIONS_PREBUILD_BUILD_FOLDER}} --config ${{env.BUILD_TYPE}}
-        git status
-      if: matrix.os == 'macOS-latest'
-
-    - name: System - List libraries
-      run: |
-        find ${{env.GITHUB_ACTIONS_PREBUILD_BUILD_FOLDER}} -name \*.${{matrix.shared_library_extension}}
-        find ${{env.GITHUB_ACTIONS_PREBUILD_BUILD_FOLDER}} -name \*.${{matrix.static_library_extension}}
-        if [[ ${{matrix.os}} == 'windows-latest' ]]
-            then
-                find ${{env.GITHUB_ACTIONS_PREBUILD_BUILD_FOLDER}} -name \*.${{matrix.additional_static_library_extension}}
-        fi
-        git status
-              
-    - name: System - Create <Library Output>/<operating system> directory
-      run: |
-        if [[ -e ${{env.GITHUB_ACTIONS_PREBUILD_OUT_FOLDER}} ]]
-            then
-                if [[ ! -e ${{env.GITHUB_ACTIONS_PREBUILD_OUT_FOLDER}}/${{matrix.os}} ]]
-                    then
-                        mkdir ${{env.GITHUB_ACTIONS_PREBUILD_OUT_FOLDER}}/${{matrix.os}}
-                fi
-            else
-                mkdir ${{env.GITHUB_ACTIONS_PREBUILD_OUT_FOLDER}}
-                mkdir ${{env.GITHUB_ACTIONS_PREBUILD_OUT_FOLDER}}/${{matrix.os}}
-        fi
-        git status
-      if: env.PUSH_TO_EXTERNAL_REPO == 'false'
-      
     - name: System - EXTERNAL REPO - Create ssh key if needed
       run: |
         if [[ ! -e GITHUB_ACTIONS_PREBUILD_SSH_KEY ]]
@@ -468,7 +395,80 @@ jobs:
                 git push --set-upstream origin main --force --repo ssh://git@github.com/${{github.repository}}-${{matrix.os}}.git
         fi
       if: env.PUSH_TO_EXTERNAL_REPO == 'true'
+      
+    - name: System - Download VulkanSDK (Mac OS)
+      run: |
+        curl https://sdk.lunarg.com/sdk/download/1.2.176.1/mac/vulkansdk-macos-1.2.176.1.dmg -o VulkanSDK.dmg
+      if: matrix.os == 'macOS-latest'
 
+    - name: System - Attach VulkanSDK DMG (Mac OS)
+      run: |
+        hdiutil attach -mountpoint Vulkan VulkanSDK.dmg
+      if: matrix.os == 'macOS-latest'
+
+    - name: System - Install VulkanSDK (Mac OS)
+      run: |
+        sudo ./Vulkan/InstallVulkan.app/Contents/MacOS/InstallVulkan --root ~/VulkanSDK --accept-licenses --default-answer --confirm-command install
+      if: matrix.os == 'macOS-latest'
+
+    - name: System - Detach VulkanSDK DMG (Mac OS)
+      run: |
+        hdiutil detach Vulkan
+      if: matrix.os == 'macOS-latest'
+
+    - name: System - Delete VulkanSDK DMG (Mac OS)
+      run: |
+        rm VulkanSDK.dmg
+      if: matrix.os == 'macOS-latest'
+
+    - name: CMake - Configure (Mac OS)
+      # Configure CMake in a 'build' subdirectory. `CMAKE_BUILD_TYPE` is only required if you are using a single-configuration generator such as make.
+      # See https://cmake.org/cmake/help/latest/variable/CMAKE_BUILD_TYPE.html?highlight=cmake_build_type
+      run: |
+        export VULKAN_SDK=~/VulkanSDK
+        cmake \
+            -D GITHUB_ACTIONS_PREBUILD_OS=${{matrix.os}} \
+            -D GITHUB_ACTIONS_PREBUILD_SHARED_LIBRARY_EXTENSION=${{matrix.shared_library_extension}} \
+            -D GITHUB_ACTIONS_PREBUILD_STATIC_LIBRARY_EXTENSION=${{matrix.static_library_extension}} \
+            -D GITHUB_ACTIONS_PREBUILD_ADDITIONAL_STATIC_LIBRARY_EXTENSION=${{matrix.additional_static_library_extension}} \
+            -B ${{env.GITHUB_ACTIONS_PREBUILD_BUILD_FOLDER}} \
+            -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}}
+        git status
+      if: matrix.os == 'macOS-latest'
+
+    - name: CMake - Build (Mac OS)
+      # Build your program with the given configuration
+      run: |
+        export VULKAN_SDK=~/VulkanSDK
+        cmake --build ${{env.GITHUB_ACTIONS_PREBUILD_BUILD_FOLDER}} --config ${{env.BUILD_TYPE}}
+        git status
+      if: matrix.os == 'macOS-latest'
+
+    - name: System - List libraries
+      run: |
+        find ${{env.GITHUB_ACTIONS_PREBUILD_BUILD_FOLDER}} -name \*.${{matrix.shared_library_extension}}
+        find ${{env.GITHUB_ACTIONS_PREBUILD_BUILD_FOLDER}} -name \*.${{matrix.static_library_extension}}
+        if [[ ${{matrix.os}} == 'windows-latest' ]]
+            then
+                find ${{env.GITHUB_ACTIONS_PREBUILD_BUILD_FOLDER}} -name \*.${{matrix.additional_static_library_extension}}
+        fi
+        git status
+              
+    - name: System - Create <Library Output>/<operating system> directory
+      run: |
+        if [[ -e ${{env.GITHUB_ACTIONS_PREBUILD_OUT_FOLDER}} ]]
+            then
+                if [[ ! -e ${{env.GITHUB_ACTIONS_PREBUILD_OUT_FOLDER}}/${{matrix.os}} ]]
+                    then
+                        mkdir ${{env.GITHUB_ACTIONS_PREBUILD_OUT_FOLDER}}/${{matrix.os}}
+                fi
+            else
+                mkdir ${{env.GITHUB_ACTIONS_PREBUILD_OUT_FOLDER}}
+                mkdir ${{env.GITHUB_ACTIONS_PREBUILD_OUT_FOLDER}}/${{matrix.os}}
+        fi
+        git status
+      if: env.PUSH_TO_EXTERNAL_REPO == 'false'
+      
     - name: System - Clean split files
       run: |
         if [[ ${{env.PUSH_TO_EXTERNAL_REPO}} == 'true' ]]
