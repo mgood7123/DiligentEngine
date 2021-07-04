@@ -563,7 +563,7 @@ jobs:
                 export GITHUB_ACTIONS_PREBUILD_CHMOD="stat --format \"%a\""
         fi
         ./split_files.sh $GITHUB_ACTIONS_PREBUILD_OUT_FOLDER/${{matrix.os}} ${{matrix.shared_library_extension}} "$GITHUB_ACTIONS_PREBUILD_CHMOD"
-        ./split_files.sh $GITHUB_ACTIONS_PREBUILD_OUT_FOLDER/${{matrix.os}} ${{matrix.shared_library_extension}} "$GITHUB_ACTIONS_PREBUILD_CHMOD"
+        ./split_files.sh $GITHUB_ACTIONS_PREBUILD_OUT_FOLDER/${{matrix.os}} ${{matrix.static_library_extension}} "$GITHUB_ACTIONS_PREBUILD_CHMOD"
         if [[ ${{matrix.os}} == 'windows-latest' ]]
             then
                 ./split_files.sh $GITHUB_ACTIONS_PREBUILD_OUT_FOLDER/${{matrix.os}} ${{matrix.additional_static_library_extension}} "$GITHUB_ACTIONS_PREBUILD_CHMOD"
