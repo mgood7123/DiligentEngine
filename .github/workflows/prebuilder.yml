@@ -248,8 +248,8 @@ jobs:
       # Configure CMake in a 'build' subdirectory. `CMAKE_BUILD_TYPE` is only required if you are using a single-configuration generator such as make.
       # See https://cmake.org/cmake/help/latest/variable/CMAKE_BUILD_TYPE.html?highlight=cmake_build_type
       env:
-        VULKAN_SDK: ~/VulkanSDK
       run: |
+        export VULKAN_SDK=~/VulkanSDK
         ls -l $VULKAN_SDK
         cmake -B ${{env.GITHUB_ACTIONS_PREBUILD_BUILD_FOLDER}} -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}}
         git status
@@ -258,7 +258,7 @@ jobs:
     - name: CMake - Build (Mac OS)
       # Build your program with the given configuration
       env:
-        VULKAN_SDK: ~/VulkanSDK
+        export VULKAN_SDK=~/VulkanSDK
       run: |
         cmake --build ${{env.GITHUB_ACTIONS_PREBUILD_BUILD_FOLDER}} --config ${{env.BUILD_TYPE}}
         git status
