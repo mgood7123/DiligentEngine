@@ -224,8 +224,6 @@ jobs:
       run: |
         hdiutil attach -mountpoint Vulkan VulkanSDK.dmg
         sudo ./Vulkan/InstallVulkan.app/Contents/MacOS/InstallVulkan --root ~/VulkanSDK --accept-licenses --default-answer --confirm-command install
-        echo 'export VULKAN_SDK="~/VulkanSDK"' >> ~/.bashrc
-        bash -c "declare -p VULKAN_SDK"
         bash -c "env | grep VULKAN_SDK"
         hdiutil detach Vulkan
         rm VulkanSDK.dmg
@@ -250,12 +248,16 @@ jobs:
     - name: CMake - Configure
       # Configure CMake in a 'build' subdirectory. `CMAKE_BUILD_TYPE` is only required if you are using a single-configuration generator such as make.
       # See https://cmake.org/cmake/help/latest/variable/CMAKE_BUILD_TYPE.html?highlight=cmake_build_type
+      env:
+        VULKAN_SDK: ~/VulkanSDK
       run: |
-        cmake -D GITHUB_ACTIONS_PREBUILD_EXTENSION=${{matrix.extension}} -B ${{env.GITHUB_ACTIONS_PREBUILD_BUILD_FOLDER}} -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}}
+        cmake -B ${{env.GITHUB_ACTIONS_PREBUILD_BUILD_FOLDER}} -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}}
         git status
 
     - name: CMake - Build
       # Build your program with the given configuration
+      env:
+        VULKAN_SDK: ~/VulkanSDK
       run: |
         cmake --build ${{env.GITHUB_ACTIONS_PREBUILD_BUILD_FOLDER}} --config ${{env.BUILD_TYPE}}
         git status
