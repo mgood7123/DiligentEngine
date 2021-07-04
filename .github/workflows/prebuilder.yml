@@ -250,6 +250,7 @@ jobs:
       env:
         VULKAN_SDK: ~/VulkanSDK
       run: |
+        ls -l $VULKAN_SDK
         cmake -B ${{env.GITHUB_ACTIONS_PREBUILD_BUILD_FOLDER}} -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}}
         git status
       if: matrix.os == 'macOS-latest'
