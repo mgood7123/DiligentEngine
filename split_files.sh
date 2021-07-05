@@ -13,4 +13,25 @@ fi
 FOLDER=$1
 NAME=\*.$2
 
-find $FOLDER -name $NAME -exec bash -c "DIR=\"\$(dirname {})\"; BASE=\"\$(basename {})\"; cd \$DIR; if [[ \$(wc -c \$BASE) > \$((1024*1024*1024*90)) ]]; then echo creating split info for \$BASE; touch \$BASE.SPLIT_MARKER; echo \$BASE > \$BASE.SPLIT_MARKER_NAME; $3 \$BASE > \$BASE.SPLIT_MARKER_CHMOD; echo created split info for \$BASE; echo splitting \$BASE; split -b 90M \$BASE \$BASE.SPLIT_FILE; rm \$BASE; echo split \$BASE; fi" \;
+find $FOLDER -name $NAME -exec bash -c "\
+DIR=\"\$(dirname {})\"; \
+BASE=\"\$(basename {})\"; \
+cd \$DIR; \
+echo \"size in bytes is -            \$(wc -c \$BASE)\"; \
+echo \"size in bytes for splitting is - \$((1024*1024*1024*90))\"; \
+if [[ \$(wc -c \$BASE) > \$((1024*1024*1024*90)) ]]; \
+    then \
+        echo \$BASE qualifies for splitting; \
+        echo creating split info for \$BASE; \
+        touch \$BASE.SPLIT_MARKER; \
+        echo \$BASE > \$BASE.SPLIT_MARKER_NAME; \
+        $3 \$BASE > \$BASE.SPLIT_MARKER_CHMOD; \
+        echo created split info for \$BASE; \
+        echo splitting \$BASE; \
+        split -b 90M \$BASE \$BASE.SPLIT_FILE; \
+        rm \$BASE; \
+        echo split \$BASE; \
+    else \
+        echo \$BASE does not qualify for splitting; \
+fi" \
+\;
