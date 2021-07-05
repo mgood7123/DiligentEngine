@@ -17,9 +17,9 @@ find $FOLDER -name $NAME -exec bash -c "\
 DIR=\"\$(dirname {})\"; \
 BASE=\"\$(basename {})\"; \
 cd \$DIR; \
-echo \"size in bytes is -            \$(wc -c \$BASE)\"; \
-echo \"size in bytes for splitting is - \$((1024*1024*1024*90))\"; \
-if [[ \$(wc -c \$BASE) > \$((1024*1024*1024*90)) ]]; \
+echo \"size in bytes is - \$(wc -c \$BASE)\"; \
+echo \"size in bytes for splitting is - \$((1024*1024*90))\"; \
+if [[ \$(wc -c \$BASE) > \$((1024*1024*90)) ]]; \
     then \
         echo \$BASE qualifies for splitting; \
         echo creating split info for \$BASE; \
