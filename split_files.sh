@@ -23,7 +23,7 @@ CAP=\$((1024*1024*90)); \
 cd \$DIR; \
 echo \"size in bytes is -               \$SIZE\"; \
 echo \"size in bytes for splitting is - \$CAP\"; \
-if [[ \$SIZE > \$CAP ]]; \
+if [[ \$SIZE -gt \$CAP ]]; \
     then \
         echo \$BASE qualifies for splitting; \
         echo creating split info for \$BASE; \
