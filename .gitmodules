@@ -10,3 +10,6 @@
 [submodule "DiligentTools"]
 	path = DiligentTools
 	url = https://github.com/mgood7123/DiligentTools
+[submodule "GITHUB_ACTIONS_PREBUILD_EXTERNAL_REPO_FOLDER/macOS-latest"]
+	path = GITHUB_ACTIONS_PREBUILD_EXTERNAL_REPO_FOLDER/macOS-latest
+	url = ssh://git@github.com/mgood7123/DiligentEngine-macOS-latest.git
