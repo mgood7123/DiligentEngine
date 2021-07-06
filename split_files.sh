@@ -21,8 +21,6 @@ BASE=\"\$(basename {})\"; \
 SIZE=\$($3 {}); \
 CAP=\$((1024*1024*90)); \
 cd \$DIR; \
-echo \"size in bytes is -               \$SIZE\"; \
-echo \"size in bytes for splitting is - \$CAP\"; \
 if [[ \$SIZE -gt \$CAP ]]; \
     then \
         echo \$BASE qualifies for splitting; \
@@ -32,7 +30,7 @@ if [[ \$SIZE -gt \$CAP ]]; \
         $4 \$BASE > \$BASE.SPLIT_MARKER_CHMOD; \
         echo created split info for \$BASE; \
         echo splitting \$BASE; \
-        split -b 90M \$BASE \$BASE.SPLIT_FILE; \
+        split -b 90m \$BASE \$BASE.SPLIT_FILE; \
         rm \$BASE; \
         echo split \$BASE; \
     else \
