@@ -23,7 +23,6 @@ CAP=\$((1024*1024*90)); \
 cd \$DIR; \
 if [[ \$SIZE -gt \$CAP ]]; \
     then \
-        echo \$BASE qualifies for splitting; \
         echo creating split info for \$BASE; \
         touch \$BASE.SPLIT_MARKER; \
         echo \$BASE > \$BASE.SPLIT_MARKER_NAME; \
@@ -34,6 +33,6 @@ if [[ \$SIZE -gt \$CAP ]]; \
         rm \$BASE; \
         echo split \$BASE; \
     else \
-        echo \$BASE does not qualify for splitting; \
+        echo skipping \$BASE; \
 fi" \
 \;
