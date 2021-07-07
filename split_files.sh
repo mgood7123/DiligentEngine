@@ -19,7 +19,7 @@ find $FOLDER -name $NAME -exec bash -c "\
 DIR=\"\$(dirname {})\"; \
 BASE=\"\$(basename {})\"; \
 SIZE=\$($3 {}); \
-CAP=\$((1024*1024*90)); \
+CAP=\$((1024*1024*25)); \
 cd \$DIR; \
 if [[ \$SIZE -gt \$CAP ]]; \
     then \
@@ -29,7 +29,7 @@ if [[ \$SIZE -gt \$CAP ]]; \
         $4 \$BASE > \$BASE.SPLIT_MARKER_CHMOD; \
         echo created split info for \$BASE; \
         echo splitting \$BASE; \
-        split -b 90m \$BASE \$BASE.SPLIT_FILE; \
+        split -b 25m \$BASE \$BASE.SPLIT_FILE; \
         rm \$BASE; \
         echo split \$BASE; \
     else \
