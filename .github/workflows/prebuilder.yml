@@ -404,7 +404,7 @@ jobs:
         ssh-add -l -E sha256
         if [[ ! -e ${{env.GITHUB_ACTIONS_PREBUILD_EXTERNAL_REPO_FOLDER}}/${{matrix.os}} ]]
             then
-                git submodule add ssh://git@github.com/${{github.repository}}-${{matrix.os}}.git ${{env.GITHUB_ACTIONS_PREBUILD_EXTERNAL_REPO_FOLDER}}/${{matrix.os}} || true
+                git submodule add http://github.com/${{github.repository}}-${{matrix.os}}.git ${{env.GITHUB_ACTIONS_PREBUILD_EXTERNAL_REPO_FOLDER}}/${{matrix.os}} || true
             else
                 git submodule update --init ${{env.GITHUB_ACTIONS_PREBUILD_EXTERNAL_REPO_FOLDER}}/${{matrix.os}} || true
                 cd ${{env.GITHUB_ACTIONS_PREBUILD_EXTERNAL_REPO_FOLDER}}/${{matrix.os}}
@@ -442,7 +442,7 @@ jobs:
                 rm -rf ${{env.GITHUB_ACTIONS_PREBUILD_EXTERNAL_REPO_FOLDER}}/${{matrix.os}}
                 rm -rf .git/modules/${{env.GITHUB_ACTIONS_PREBUILD_EXTERNAL_REPO_FOLDER}}/${{matrix.os}}
                 
-                git submodule add ssh://git@github.com/${{github.repository}}-${{matrix.os}}.git ${{env.GITHUB_ACTIONS_PREBUILD_EXTERNAL_REPO_FOLDER}}/${{matrix.os}} || true
+                git submodule add http://github.com/${{github.repository}}-${{matrix.os}}.git ${{env.GITHUB_ACTIONS_PREBUILD_EXTERNAL_REPO_FOLDER}}/${{matrix.os}} || true
             else
                 if [[ ${{env.KEEP_HISTORY}} == 'false' ]]
                     then
